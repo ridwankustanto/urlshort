@@ -1,0 +1,4 @@
+- path: /github
+  url: https://github.com
+- path: /google
+  url: https://google.com
