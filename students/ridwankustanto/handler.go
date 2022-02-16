@@ -14,25 +14,19 @@ import (
 // If the path is not provided in the map, then the fallback
 // http.Handler will be called instead.
 func MapHandler(pathsToUrls map[string]string, fallback http.Handler) http.HandlerFunc {
-	//	TODO: Implement this...
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", func(rw http.ResponseWriter, r *http.Request) {
-		shortPath := r.URL.String()
+	return func(rw http.ResponseWriter, r *http.Request) {
+		path := r.URL.String()
 
 		// find match path
-		for path, url := range pathsToUrls {
-			if path == shortPath {
-				http.Redirect(rw, r, url, http.StatusMovedPermanently)
-				return
-			}
+		if dest, ok := pathsToUrls[path]; ok {
+			http.Redirect(rw, r, dest, http.StatusMovedPermanently)
+			return
 		}
 
 		// fallback if nothing found
 		fallback.ServeHTTP(rw, r)
 
-	})
-
-	return mux.ServeHTTP
+	}
 }
 
 // YAMLHandler will parse the provided YAML and then return
@@ -52,25 +46,19 @@ func MapHandler(pathsToUrls map[string]string, fallback http.Handler) http.Handl
 // See MapHandler to create a similar http.HandlerFunc via
 // a mapping of paths to urls.
 func YAMLHandler(yml []byte, fallback http.Handler) (http.HandlerFunc, error) {
-	// TODO: Implement this...
-
 	yamlData, err := parseYAML(yml)
 	if err != nil {
 		return nil, err
 	}
-
 	yamlMap := buildMap(yamlData)
-
 	return MapHandler(yamlMap, fallback), nil
 }
 
 func parseYAML(yamlString []byte) ([]map[string]string, error) {
 	yamlData := []map[string]string{}
-
 	if err := yaml.Unmarshal(yamlString, &yamlData); err != nil {
 		return nil, fmt.Errorf("can't unmarshal yaml data with error %v", err)
 	}
-
 	return yamlData, nil
 }
 
