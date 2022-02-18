@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"database/sql"
 	"flag"
 	"fmt"
 	"io"
@@ -9,13 +10,22 @@ import (
 	"net/http"
 	"os"
 
+	_ "github.com/mattn/go-sqlite3"
 	urlshort "github.com/ridwankustanto/urlshort"
 )
 
 func main() {
 	yamlLocation := flag.String("yamlLocation", "pathToUrls.yaml", "location of yaml file that contain path and url")
 	jsonLocation := flag.String("jsonLocation", "pathToUrls.json", "location of json file that contain path and url")
+	sqliteLocation := flag.String("sqliteLocation", "pathToUrls.db", "location of sqlite db file that contain path and url")
 	flag.Parse()
+
+	// connect to sqlite3
+	dbConnection, err := connectSqlite(*sqliteLocation)
+	if err != nil {
+		log.Fatalln(err)
+		return
+	}
 
 	// Parse yaml
 	yamlByte, err := parseFile(*yamlLocation)
@@ -55,8 +65,13 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	sqliteHandler, err := urlshort.SqliteHandler(dbConnection, jsonHandler)
+	if err != nil {
+		panic(err)
+	}
 	fmt.Println("Starting the server on :8080")
-	http.ListenAndServe(":8080", jsonHandler)
+	http.ListenAndServe(":8080", sqliteHandler)
 }
 
 func defaultMux() *http.ServeMux {
@@ -81,4 +96,14 @@ func parseFile(location string) ([]byte, error) {
 	io.Copy(&buf, f)
 
 	return buf.Bytes(), nil
+}
+
+func connectSqlite(location string) (*sql.DB, error) {
+	sqliteDatabase, err := sql.Open("sqlite3", location)
+	if err != nil {
+		return nil, err
+	}
+	// defer sqliteDatabase.Close()
+
+	return sqliteDatabase, nil
 }

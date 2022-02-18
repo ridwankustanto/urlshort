@@ -1,8 +1,10 @@
 package urlshort
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 
 	"gopkg.in/yaml.v2"
@@ -105,4 +107,45 @@ func parseJSON(jsonByte []byte) ([]map[string]string, error) {
 		return nil, err
 	}
 	return jsonData, nil
+}
+
+// SqliteHandler will fetch path and url data on table `url_shortener`
+// from provided db.
+//
+// Database should has field `path` and `url` to be able to fit to the
+// handler.
+//
+// The only errors that can be returned all related to having
+// different table or fields.
+func SqliteHandler(db *sql.DB, fallback http.Handler) (http.HandlerFunc, error) {
+
+	// Select * from table
+	row, err := db.Query("SELECT path, url FROM url_shortener")
+	if err != nil {
+		log.Println("here", err)
+		return nil, err
+	}
+	defer row.Close()
+
+	var mapData []map[string]string
+	for row.Next() {
+		var (
+			path, url string
+		)
+
+		err := row.Scan(&path, &url)
+		if err != nil {
+			return nil, err
+		}
+
+		mapData = append(mapData, map[string]string{
+			"path": path,
+			"url":  url,
+		})
+
+	}
+
+	dbData := buildMap(mapData)
+
+	return MapHandler(dbData, fallback), nil
 }
