@@ -1,6 +1,7 @@
 package urlshort
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -62,10 +63,46 @@ func parseYAML(yamlString []byte) ([]map[string]string, error) {
 	return yamlData, nil
 }
 
-func buildMap(yamlData []map[string]string) map[string]string {
-	yamlMap := make(map[string]string)
-	for _, data := range yamlData {
-		yamlMap[data["path"]] = data["url"]
+func buildMap(arrMapData []map[string]string) map[string]string {
+	mapData := make(map[string]string)
+	for _, data := range arrMapData {
+		mapData[data["path"]] = data["url"]
 	}
-	return yamlMap
+	return mapData
+}
+
+// JSONHandler will parse provided JSON file and then return
+// an http.HandleFunc (which also implements http.Handler)
+// that will attemp to map any paths to their corresponding
+// URL. If the path not provided in the JSON, then the fallback
+// http.Handler will be called instead.
+//
+// JSON is expected to be in the format:
+//
+// 		[
+// 			{
+//				"path": "",
+//				"url": ""
+// 			}
+// 		]
+//
+// The only errors that can be returned all related to having
+// invalid JSON data.
+func JSONHandler(jsonByte []byte, fallback http.Handler) (http.HandlerFunc, error) {
+	jsonData, err := parseJSON(jsonByte)
+	if err != nil {
+		return nil, err
+	}
+	jsonMap := buildMap(jsonData)
+	return MapHandler(jsonMap, fallback), nil
+}
+
+func parseJSON(jsonByte []byte) ([]map[string]string, error) {
+
+	var jsonData []map[string]string
+	err := json.Unmarshal(jsonByte, &jsonData)
+	if err != nil {
+		return nil, err
+	}
+	return jsonData, nil
 }

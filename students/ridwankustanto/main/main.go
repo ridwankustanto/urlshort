@@ -14,10 +14,18 @@ import (
 
 func main() {
 	yamlLocation := flag.String("yamlLocation", "pathToUrls.yaml", "location of yaml file that contain path and url")
+	jsonLocation := flag.String("jsonLocation", "pathToUrls.json", "location of json file that contain path and url")
 	flag.Parse()
 
 	// Parse yaml
-	yamlByte, err := parseYamlFile(*yamlLocation)
+	yamlByte, err := parseFile(*yamlLocation)
+	if err != nil {
+		log.Fatalln(err)
+		return
+	}
+
+	// Parse json
+	jsonByte, err := parseFile(*jsonLocation)
 	if err != nil {
 		log.Fatalln(err)
 		return
@@ -42,8 +50,13 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	jsonHandler, err := urlshort.JSONHandler(jsonByte, yamlHandler)
+	if err != nil {
+		panic(err)
+	}
 	fmt.Println("Starting the server on :8080")
-	http.ListenAndServe(":8080", yamlHandler)
+	http.ListenAndServe(":8080", jsonHandler)
 }
 
 func defaultMux() *http.ServeMux {
@@ -56,9 +69,9 @@ func hello(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "Hello, world!")
 }
 
-func parseYamlFile(yamlLocation string) ([]byte, error) {
+func parseFile(location string) ([]byte, error) {
 
-	f, err := os.Open(yamlLocation)
+	f, err := os.Open(location)
 	if err != nil {
 		return nil, err
 	}
